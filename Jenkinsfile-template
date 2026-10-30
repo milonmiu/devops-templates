@@ -1,0 +1,62 @@
+
+--- [ TEMPLATE 4: UNIVERSAL JENKINSFILE (Jenkinsfile) ] ---
+pipeline {
+    agent any  // ফ্যাক্টরির যেকোনো খালি মেশিন/ওয়ার্কারে কাজ চালাও
+
+    // ১. গ্লোবাল ভ্যারিয়েবল (stages শুরুর আগে ডিক্লেয়ার করতে হয়; কল করার নিয়ম: ${env.IMAGE_NAME})
+    environment {
+        APP_ENV      = 'production'
+        IMAGE_NAME   = 'milonmiu/myapp'
+        CONTAINER    = 'myapp-container'
+    }
+
+    // ২. ইউজার ইনপুট ফর্ম (প্রথমবার Build Now দিলে রেজিস্টার হয়, F5 দিলে Build with Parameters আসে)
+    parameters {
+        choice(name: 'ENV', choices: ['dev', 'stage', 'prod'], description: 'Select Target Environment')
+        string(name: 'TAG', defaultValue: 'v1.0', description: 'Enter Docker Image Version Tag')
+    }
+
+    // ৩. কাজের মূল বিভাগসমূহ (Stages)
+    stages {
+        stage('1. Checkout Code') {
+            steps {
+                checkout scm  // গিটহাব থেকে লেটেস্ট কোড পুল করে
+                echo "Checked out code for Environment: ${params.ENV}"
+            }
+        }
+
+        stage('2. Build Docker Image') {
+            steps {
+                echo "Building Image: ${env.IMAGE_NAME}:${params.TAG} in ${env.APP_ENV} mode"
+                // আসল প্রজেক্টে শেল কমান্ড: sh "docker build -t ${env.IMAGE_NAME}:${params.TAG} ."
+            }
+        }
+
+        stage('3. Deploy to Production') {
+            // শর্ত (Guard): শুধুমাত্র ড্রপডাউনে 'prod' সিলেক্ট করলেই এই স্টেজ চলবে, নাহলে Skipped হবে
+            when {
+                expression { params.ENV == 'prod' }
+            }
+            steps {
+                echo "Deploying ${env.CONTAINER} to Production Server..."
+                // sh "docker rm -f ${env.CONTAINER} || true"
+                // sh "docker run -d -p 5000:5000 --name ${env.CONTAINER} ${env.IMAGE_NAME}:${params.TAG}"
+            }
+        }
+    }
+
+    // ৪. বিল্ড শেষ হওয়ার পর স্বয়ংক্রিয় রিপোর্ট (Post Actions)
+    post {
+        always {
+            echo "Always runs: Cleaning up workspace..."
+        }
+        success {
+            echo "SUCCESS: Job '${env.JOB_NAME}' Build #${env.BUILD_NUMBER} passed!"
+        }
+        failure {
+            echo "FAILURE: Job '${env.JOB_NAME}' Build #${env.BUILD_NUMBER} failed!"
+        }
+    }
+}
+================================================================================
+
