@@ -1,0 +1,44 @@
+
+--- [ TEMPLATE 3: UNIVERSAL DOCKER COMPOSE (docker-compose.yml) ] ---
+# বিঃদ্রঃ আধুনিক Docker Compose V2-তে উপরে "version: '3'" আর লিখতে হয় না (Obsolete)
+services:
+  # সার্ভিস ১: ডাটাবেজ (অন্য কন্টেইনারগুলো এই 'database' সার্ভিস নামেই একে চিনবে)
+  database:
+    image: mysql:8.0
+    container_name: app-mysql
+    restart: always                   # সার্ভার রিবুট নিলে বা ক্র্যাশ করলে অটো রিস্টার্ট হবে
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: mydb
+      MYSQL_USER: myuser
+      MYSQL_PASSWORD: mypassword
+    volumes:
+      - db_data:/var/lib/mysql        # Named Volume (/var/lib/docker/volumes/-এ থাকে)
+    networks:
+      - app_net
+
+  # সার্ভিস ২: ওয়েব বা ব্যাকএন্ড অ্যাপ্লিকেশন
+  web:
+    image: nginx:latest               # কাস্টম Dockerfile হলে লিখবেন: build: ./app
+    container_name: app-web
+    restart: always
+    ports:
+      - "8085:80"                     # বাম পাশে হোস্ট পোর্ট (8085) : ডান পাশে কন্টেইনার পোর্ট (80)
+    environment:
+      DB_HOST: database:3306          # container_name নয়, সার্ভিস নেম 'database:3306' ব্যবহৃত হয়
+    volumes:
+      - ./www:/usr/share/nginx/html   # Bind Mount (হোস্ট ফোল্ডার সরাসরি কন্টেইনারে)
+    depends_on:
+      - database
+    networks:
+      - app_net
+
+# গ্লোবাল ভলিউম রেজিস্ট্রেশন (Named Volume ব্যবহার করলে এখানে নাম লেখা বাধ্যতামূলক)
+volumes:
+  db_data:
+
+# গ্লোবাল কাস্টম নেটওয়ার্ক রেজিস্ট্রেশন (কাস্টম নেটওয়ার্ক ব্যবহার করলে এখানে লেখা বাধ্যতামূলক)
+networks:
+  app_net:
+    driver: bridge
+
